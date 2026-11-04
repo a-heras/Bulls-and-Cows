@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addGuess, createInitialState, resetGame, startGame, type GameSettings } from './gameState';
+import {
+  addGuess,
+  createInitialState,
+  resetGame,
+  startGame,
+  type GameSettings,
+} from './gameState.js';
 
 const settings: GameSettings = { length: 4, base: 10 };
 
@@ -12,6 +18,7 @@ describe('gameState', () => {
       expect(state.secret).toBeNull();
       expect(state.settings).toBeNull();
       expect(state.startedAt).toBeNull();
+      expect(state.finishedAt).toBeNull();
     });
   });
 
@@ -22,6 +29,7 @@ describe('gameState', () => {
       expect(state.settings).toEqual(settings);
       expect(state.secret).toBe('1234');
       expect(state.startedAt).toBe(1000);
+      expect(state.finishedAt).toBeNull();
       expect(state.history).toEqual([]);
     });
 
@@ -62,11 +70,20 @@ describe('gameState', () => {
       expect(second.history).toHaveLength(1);
     });
 
-    it('moves to won phase when bulls equal length', () => {
+    it('moves to result phase when bulls equal length', () => {
       const playing = startGame(createInitialState(), settings, '1234', 0);
       const next = addGuess(playing, '1234', { bulls: 4, cows: 0 });
 
-      expect(next.phase).toBe('won');
+      expect(next.phase).toBe('result');
+      expect(next.finishedAt).not.toBeNull();
+    });
+
+    it('stays in playing phase when guess is not winning', () => {
+      const playing = startGame(createInitialState(), settings, '1234', 0);
+      const next = addGuess(playing, '5678', { bulls: 0, cows: 0 });
+
+      expect(next.phase).toBe('playing');
+      expect(next.finishedAt).toBeNull();
     });
   });
 
@@ -80,6 +97,7 @@ describe('gameState', () => {
       expect(reset.settings).toBeNull();
       expect(reset.history).toEqual([]);
       expect(reset.startedAt).toBeNull();
+      expect(reset.finishedAt).toBeNull();
     });
   });
 });

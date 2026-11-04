@@ -1,72 +1,111 @@
-import { createDigitValidator } from '../core/digitValidator';
-import { isValidGuess } from '../core/isValidGuess';
-import type { GameSettings, GameState, GuessEntry } from '../core/gameState';
-import { el } from './dom';
+import { createDigitValidator } from '../core/digitValidator.js';
+import { isValidGuess } from '../core/isValidGuess.js';
+import type { GameSettings, GameState, GuessEntry } from '../core/gameState.js';
+import { formatTime } from './format.js';
+import { el } from './dom.js';
 
-export interface GameHandlers {
+export type GameHandlers = {
   onGuess: (guess: string) => void;
-  onNewGame: () => void;
-}
-
-const formatTime = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  onMenu: () => void;
 };
 
 const renderHistoryEntry = (entry: GuessEntry): HTMLElement =>
   el('li', {
-    text: `${entry.guess.toUpperCase()} — bulls: ${entry.result.bulls}, cows: ${entry.result.cows}`,
+    children: [
+      el('span', { className: 'guess-text', text: entry.guess.toUpperCase() }),
+      el('span', {
+        className: 'badge bulls',
+        text: `${entry.result.bulls} bulls`,
+      }),
+      el('span', {
+        className: 'badge cows',
+        text: `${entry.result.cows} cows`,
+      }),
+    ],
   });
 
 export const renderGame = (state: GameState, now: number, handlers: GameHandlers): HTMLElement => {
   const settings: GameSettings = state.settings ?? { length: 4, base: 10 };
   const isDigit = createDigitValidator(settings.base);
 
-  const input = el('input', {
+  let currentGuess = '';
+
+  const cellsRow = el('div', {
+    className: 'cells',
+    attrs: { role: 'group', 'aria-label': 'Your guess' },
+  });
+
+  const renderCells = (): void => {
+    cellsRow.replaceChildren(
+      ...Array.from({ length: settings.length }, (_, index) => {
+        const char = currentGuess[index] ?? '';
+        const isActive = index === currentGuess.length;
+        return el('span', {
+          className: `cell${char ? ' filled' : ''}${isActive ? ' active' : ''}`,
+          text: char.toUpperCase(),
+        });
+      }),
+    );
+  };
+
+  const hiddenInput = el('input', {
+    className: 'hidden-input',
     attrs: {
       type: 'text',
       inputmode: 'text',
       autocomplete: 'off',
-      maxlength: String(settings.length),
-      'aria-label': 'Your guess',
-      placeholder: `${settings.length} digits, base ${settings.base}`,
+      'aria-label': 'Type your guess',
     },
   });
 
   const errorMessage = el('p', { className: 'hint' });
 
-  input.addEventListener('input', () => {
-    const filtered = input.value
+  const setMessage = (text: string, isError: boolean): void => {
+    errorMessage.textContent = text;
+    errorMessage.className = isError ? 'error' : 'hint';
+    if (isError) {
+      cellsRow.classList.add('shake');
+      window.setTimeout(() => cellsRow.classList.remove('shake'), 320);
+    }
+  };
+
+  const syncFromHidden = (): void => {
+    currentGuess = hiddenInput.value
       .toLowerCase()
       .split('')
       .filter((char) => isDigit(char))
       .join('')
       .slice(0, settings.length);
-    if (input.value !== filtered) input.value = filtered;
+    hiddenInput.value = currentGuess;
+    renderCells();
 
-    const valid = isValidGuess(filtered, settings.length, settings.base);
-    errorMessage.textContent =
-      filtered.length === settings.length && !valid
-        ? 'Digits must be unique and valid for the selected base'
-        : '';
-  });
-
-  const submit = (): void => {
-    const guess = input.value.toLowerCase();
-    if (!isValidGuess(guess, settings.length, settings.base)) {
-      errorMessage.textContent = 'Invalid guess';
-      return;
+    const valid = isValidGuess(currentGuess, settings.length, settings.base);
+    if (currentGuess.length === settings.length && !valid) {
+      setMessage('Digits must be unique and valid for the selected base', true);
+    } else {
+      setMessage('', false);
     }
-    handlers.onGuess(guess);
-    input.value = '';
-    errorMessage.textContent = '';
   };
 
-  input.addEventListener('keydown', (event) => {
+  hiddenInput.addEventListener('input', syncFromHidden);
+
+  const submit = (): void => {
+    if (!isValidGuess(currentGuess, settings.length, settings.base)) {
+      setMessage('Invalid guess', true);
+      return;
+    }
+    handlers.onGuess(currentGuess);
+    currentGuess = '';
+    hiddenInput.value = '';
+    renderCells();
+    setMessage('', false);
+  };
+
+  hiddenInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') submit();
   });
+
+  cellsRow.addEventListener('click', () => hiddenInput.focus());
 
   const submitButton = el('button', {
     text: 'Guess',
@@ -75,41 +114,53 @@ export const renderGame = (state: GameState, now: number, handlers: GameHandlers
   });
 
   const elapsed = state.startedAt !== null ? now - state.startedAt : 0;
-  const isWon = state.phase === 'won';
 
   const historyList = el('ul', {
     className: 'history',
     children: state.history.map(renderHistoryEntry),
   });
 
-  const newGameButton = el('button', {
-    text: 'New game',
+  const menuButton = el('button', {
+    text: 'Menu',
     attrs: { type: 'button' },
-    on: { click: () => handlers.onNewGame() },
+    className: 'ghost',
+    on: { click: () => handlers.onMenu() },
   });
 
-  const controls = isWon
-    ? [el('p', { text: `You won in ${state.history.length} attempts!` }), newGameButton]
-    : [
-        el('div', {
-          className: 'row',
-          children: [input, submitButton],
-        }),
-        errorMessage,
-      ];
-
-  return el('section', {
+  const section = el('section', {
     children: [
-      el('h2', { text: `Guess the ${settings.length}-digit secret (base ${settings.base})` }),
+      el('div', {
+        className: 'game-header',
+        children: [
+          el('h2', { text: `Guess the ${settings.length}-digit secret (base ${settings.base})` }),
+          menuButton,
+        ],
+      }),
       el('p', {
         className: 'hint',
         text: `Attempts: ${state.history.length} · Time: ${formatTime(elapsed)}`,
+        attrs: { 'data-role': 'time' },
       }),
-      ...controls,
+      el('div', {
+        className: 'cells-wrap',
+        children: [cellsRow, hiddenInput],
+      }),
+      errorMessage,
+      el('div', { className: 'row', children: [submitButton] }),
       el('h2', { text: 'History' }),
       state.history.length === 0
-        ? el('p', { className: 'hint', text: 'No guesses yet' })
+        ? el('div', {
+            className: 'empty',
+            children: [
+              el('div', { className: 'empty-icon', text: '🎯' }),
+              el('p', { className: 'hint', text: 'No guesses yet — make your first try!' }),
+            ],
+          })
         : historyList,
     ],
   });
+
+  renderCells();
+  window.setTimeout(() => hiddenInput.focus(), 0);
+  return section;
 };

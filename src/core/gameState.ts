@@ -1,27 +1,28 @@
-export interface GameSettings {
+export type GameSettings = {
   length: number;
   base: number;
-}
+};
 
-export interface GuessResult {
+export type GuessResult = {
   bulls: number;
   cows: number;
-}
+};
 
-export interface GuessEntry {
+export type GuessEntry = {
   guess: string;
   result: GuessResult;
-}
+};
 
-export type GamePhase = 'settings' | 'playing' | 'won';
+export type GamePhase = 'settings' | 'playing' | 'result';
 
-export interface GameState {
+export type GameState = {
   phase: GamePhase;
   settings: GameSettings | null;
   secret: string | null;
   history: readonly GuessEntry[];
   startedAt: number | null;
-}
+  finishedAt: number | null;
+};
 
 export const createInitialState = (): GameState => ({
   phase: 'settings',
@@ -29,6 +30,7 @@ export const createInitialState = (): GameState => ({
   secret: null,
   history: [],
   startedAt: null,
+  finishedAt: null,
 });
 
 export const startGame = (
@@ -42,6 +44,7 @@ export const startGame = (
   secret,
   history: [],
   startedAt: now,
+  finishedAt: null,
 });
 
 export const addGuess = (state: GameState, guess: string, result: GuessResult): GameState => {
@@ -55,8 +58,9 @@ export const addGuess = (state: GameState, guess: string, result: GuessResult): 
 
   return {
     ...state,
-    phase: isWon ? 'won' : state.phase,
+    phase: isWon ? 'result' : state.phase,
     history,
+    finishedAt: isWon ? Date.now() : state.finishedAt,
   };
 };
 

@@ -1,10 +1,10 @@
-interface ElementOptions {
+type ElementOptions = {
   className?: string;
   text?: string;
   attrs?: Record<string, string>;
   on?: Partial<Record<keyof HTMLElementEventMap, (event: Event) => void>>;
   children?: Node[];
-}
+};
 
 export const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,

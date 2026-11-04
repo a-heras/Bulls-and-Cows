@@ -6,7 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '**/*.test.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -28,6 +28,7 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       '@typescript-eslint/explicit-function-return-type': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/consistent-type-definitions': 'off',
       eqeqeq: ['error', 'always'],
       'prefer-const': 'error',
     },

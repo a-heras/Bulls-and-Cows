@@ -1,12 +1,8 @@
-import { countPossibleSecrets } from '../core/countPossibleSecrets';
-import type { GameSettings } from '../core/gameState';
-import { el } from './dom';
+import { countPossibleSecrets } from '../core/countPossibleSecrets.js';
+import type { GameSettings } from '../core/gameState.js';
+import { el } from './dom.js';
 
-interface Base {
-  id: 'bin' | 'oct' | 'dec' | 'hex';
-  label: string;
-  value: number;
-}
+type Base = { id: 'bin' | 'oct' | 'dec' | 'hex'; label: string; value: number };
 type Length = 2 | 3 | 4 | 5 | 6;
 
 const BASES: readonly Base[] = [
@@ -18,9 +14,9 @@ const BASES: readonly Base[] = [
 
 const LENGTHS: readonly Length[] = [2, 3, 4, 5, 6];
 
-export interface SettingsHandlers {
+export type SettingsHandlers = {
   onStart: (settings: GameSettings) => void;
-}
+};
 
 export const renderSettings = (handlers: SettingsHandlers): HTMLElement => {
   let selectedBase = 10;
@@ -49,13 +45,15 @@ export const renderSettings = (handlers: SettingsHandlers): HTMLElement => {
     ),
   });
 
+  baseSelect.value = String(selectedBase);
+  lengthSelect.value = String(selectedLength);
+
   const possibleHint = el('p', { className: 'hint' });
 
   const updateLengthAvailability = (): void => {
     for (const option of Array.from(lengthSelect.options)) {
       const length = Number(option.value);
-      const disabled = length > selectedBase;
-      option.disabled = disabled;
+      option.disabled = length > selectedBase;
     }
     if (selectedLength > selectedBase) {
       selectedLength = selectedBase as Length;
