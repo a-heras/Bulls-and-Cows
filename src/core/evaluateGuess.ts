@@ -13,7 +13,9 @@ export const evaluateGuess = (secret: string, guess: string): Evaluation => {
 
   const bulls = guessDigits.filter(isBull).length;
 
-  const secretCowsPool = secretDigits.filter((digit, index) => !isBull(guessDigits[index]!, index));
+  const secretCowsPool = secretDigits.filter(
+    (_digit, index) => !isBull(guessDigits[index]!, index),
+  );
   const guessCowsPool = guessDigits.filter((digit, index) => !isBull(digit, index));
 
   const cows = guessCowsPool.reduce<{ count: number; pool: string[] }>(
